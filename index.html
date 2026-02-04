@@ -616,21 +616,69 @@
         // デフォルト地点（東京）
         var DEFAULT_POINT = { code: "44132", name: "東京", lat: 35.6895, lon: 139.6917 };
 
+        // URLパラメータから地点名を取得
+        function getLocationFromURL() {
+            var params = new URLSearchParams(window.location.search);
+            return params.get('location') || params.get('loc') || params.get('city');
+        }
+
+        // 地点名から観測地点を検索
+        function findPointByName(name) {
+            var searchName = name.trim();
+            var found = null;
+
+            Object.keys(OBSERVATION_POINTS).forEach(function(region) {
+                var prefs = OBSERVATION_POINTS[region];
+                Object.keys(prefs).forEach(function(pref) {
+                    var points = prefs[pref];
+                    points.forEach(function(point) {
+                        // 完全一致または部分一致
+                        if (point.name === searchName ||
+                            point.name.includes(searchName) ||
+                            searchName.includes(point.name)) {
+                            found = point;
+                        }
+                    });
+                });
+            });
+
+            return found;
+        }
+
         // Initialize immediately since script is at end of body
         (function init() {
-            // Try to load last point from localStorage, or use default
-            var lastPoint = loadLastPoint();
-            if (lastPoint) {
-                console.log('Loaded from localStorage:', lastPoint.name);
-                currentPoint = lastPoint;
-                // ローディングをすぐに非表示にしてデータ取得開始
-                loadingOverlay.classList.add('hidden');
-                fetchWBGTData();
-                fetchJMAWeather();
+            loadingOverlay.classList.add('hidden');
+
+            // 1. URLパラメータをチェック（最優先）
+            var urlLocation = getLocationFromURL();
+            if (urlLocation) {
+                var point = findPointByName(urlLocation);
+                if (point) {
+                    console.log('Using URL location:', point.name);
+                    currentPoint = point;
+                    fetchWBGTData();
+                    fetchJMAWeather();
+                } else {
+                    console.log('URL location not found:', urlLocation, '- using default');
+                    currentPoint = DEFAULT_POINT;
+                    fetchWBGTData();
+                    fetchJMAWeather();
+                }
             } else {
-                // IPアドレスから位置を推定（許可不要、ダイアログなし）
-                loadingOverlay.classList.add('hidden');
-                getLocationByIP();
+                // 2. localStorageをチェック
+                var lastPoint = loadLastPoint();
+                if (lastPoint) {
+                    console.log('Loaded from localStorage:', lastPoint.name);
+                    currentPoint = lastPoint;
+                    fetchWBGTData();
+                    fetchJMAWeather();
+                } else {
+                    // 3. デフォルト（東京）を使用
+                    console.log('Using default:', DEFAULT_POINT.name);
+                    currentPoint = DEFAULT_POINT;
+                    fetchWBGTData();
+                    fetchJMAWeather();
+                }
             }
 
             setInterval(function() {
@@ -640,36 +688,6 @@
                 }
             }, 5 * 60 * 1000);
         })();
-
-        // IPアドレスから位置を推定（許可不要）
-        async function getLocationByIP() {
-            try {
-                // ip-api.com - 無料、CORS対応、許可不要
-                var response = await fetch('http://ip-api.com/json/?fields=lat,lon,city,status');
-                var data = await response.json();
-
-                if (data.status === 'success' && data.lat && data.lon) {
-                    console.log('IP location:', data.city, data.lat, data.lon);
-                    var nearest = findNearestPoint(data.lat, data.lon);
-                    if (nearest) {
-                        currentPoint = nearest.point;
-                        saveLastPoint(currentPoint);
-                        console.log('Using nearest point:', currentPoint.name);
-                    } else {
-                        currentPoint = DEFAULT_POINT;
-                    }
-                } else {
-                    console.log('IP location failed, using default');
-                    currentPoint = DEFAULT_POINT;
-                }
-            } catch (error) {
-                console.log('IP location error, using default:', error);
-                currentPoint = DEFAULT_POINT;
-            }
-
-            fetchWBGTData();
-            fetchJMAWeather();
-        }
 
         // Show error
         function showError(message, debug) {
