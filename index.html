@@ -616,10 +616,14 @@
         // デフォルト地点（東京）
         var DEFAULT_POINT = { code: "44132", name: "東京", lat: 35.6895, lon: 139.6917 };
 
-        // URLパラメータから地点名を取得
-        function getLocationFromURL() {
+        // URLパラメータを取得
+        function getURLParams() {
             var params = new URLSearchParams(window.location.search);
-            return params.get('location') || params.get('loc') || params.get('city');
+            return {
+                location: params.get('location') || params.get('loc') || params.get('city'),
+                lat: parseFloat(params.get('lat') || params.get('latitude')),
+                lon: parseFloat(params.get('lon') || params.get('lng') || params.get('longitude'))
+            };
         }
 
         // 地点名から観測地点を検索
@@ -649,36 +653,53 @@
         (function init() {
             loadingOverlay.classList.add('hidden');
 
-            // 1. URLパラメータをチェック（最優先）
-            var urlLocation = getLocationFromURL();
-            if (urlLocation) {
-                var point = findPointByName(urlLocation);
+            var urlParams = getURLParams();
+
+            // 1. 緯度経度パラメータをチェック（最優先）
+            if (!isNaN(urlParams.lat) && !isNaN(urlParams.lon)) {
+                console.log('Using lat/lon from URL:', urlParams.lat, urlParams.lon);
+                var nearest = findNearestPoint(urlParams.lat, urlParams.lon);
+                if (nearest) {
+                    currentPoint = nearest.point;
+                    console.log('Nearest point:', currentPoint.name, 'Distance:', nearest.distance.toFixed(1) + 'km');
+                } else {
+                    // 緯度経度が有効でも観測地点が見つからない場合、カスタム地点を作成
+                    currentPoint = {
+                        code: "custom",
+                        name: "現在地",
+                        lat: urlParams.lat,
+                        lon: urlParams.lon
+                    };
+                }
+                fetchWBGTData();
+                fetchJMAWeather();
+            }
+            // 2. 地名パラメータをチェック
+            else if (urlParams.location) {
+                var point = findPointByName(urlParams.location);
                 if (point) {
                     console.log('Using URL location:', point.name);
                     currentPoint = point;
-                    fetchWBGTData();
-                    fetchJMAWeather();
                 } else {
-                    console.log('URL location not found:', urlLocation, '- using default');
+                    console.log('URL location not found:', urlParams.location, '- using default');
                     currentPoint = DEFAULT_POINT;
-                    fetchWBGTData();
-                    fetchJMAWeather();
                 }
-            } else {
-                // 2. localStorageをチェック
+                fetchWBGTData();
+                fetchJMAWeather();
+            }
+            // 3. localStorageをチェック
+            else {
                 var lastPoint = loadLastPoint();
                 if (lastPoint) {
                     console.log('Loaded from localStorage:', lastPoint.name);
                     currentPoint = lastPoint;
-                    fetchWBGTData();
-                    fetchJMAWeather();
                 } else {
-                    // 3. デフォルト（東京）を使用
+                    // 4. デフォルト（東京）を使用
                     console.log('Using default:', DEFAULT_POINT.name);
                     currentPoint = DEFAULT_POINT;
-                    fetchWBGTData();
-                    fetchJMAWeather();
                 }
+                fetchWBGTData();
+                fetchJMAWeather();
             }
 
             setInterval(function() {
