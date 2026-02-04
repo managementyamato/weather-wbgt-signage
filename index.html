@@ -613,21 +613,29 @@
             }
         }
 
+        // デフォルト地点（東京）
+        var DEFAULT_POINT = { code: "44132", name: "東京", lat: 35.6895, lon: 139.6917 };
+
         // Initialize immediately since script is at end of body
         (function init() {
-            // Try to load last point from localStorage for instant display
+            // Try to load last point from localStorage, or use default
             var lastPoint = loadLastPoint();
             if (lastPoint) {
                 console.log('Loaded from localStorage:', lastPoint.name);
                 currentPoint = lastPoint;
-                // Hide loading immediately and show cached data
-                loadingOverlay.classList.add('hidden');
-                fetchWBGTData();
-                fetchJMAWeather();
+            } else {
+                // デフォルト地点を使用（許可なしでもすぐに表示）
+                console.log('Using default point:', DEFAULT_POINT.name);
+                currentPoint = DEFAULT_POINT;
             }
 
-            // Get GPS location in background (will update if different)
-            getGPSLocation(!lastPoint); // showLoading = true if no cached point
+            // ローディングをすぐに非表示にしてデータ取得開始
+            loadingOverlay.classList.add('hidden');
+            fetchWBGTData();
+            fetchJMAWeather();
+
+            // GPSは完全にバックグラウンドで（許可ダイアログを出さない場合もある）
+            tryGetGPSLocationSilently();
 
             setInterval(function() {
                 if (currentPoint) {
@@ -636,6 +644,38 @@
                 }
             }, 5 * 60 * 1000);
         })();
+
+        // GPS位置情報を静かに取得（エラーは無視）
+        function tryGetGPSLocationSilently() {
+            if (!navigator.geolocation || !isSecureContext()) {
+                return; // 対応していなければ何もしない
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    console.log('GPS success:', position.coords.latitude, position.coords.longitude);
+                    userLat = position.coords.latitude;
+                    userLon = position.coords.longitude;
+                    var nearest = findNearestPoint(userLat, userLon);
+                    if (nearest && nearest.point.name !== currentPoint.name) {
+                        currentPoint = nearest.point;
+                        saveLastPoint(currentPoint);
+                        console.log('Updated to nearest point:', currentPoint.name);
+                        fetchWBGTData();
+                        fetchJMAWeather();
+                    }
+                },
+                function(error) {
+                    // エラーは静かに無視（デフォルト地点を使い続ける）
+                    console.log('GPS not available, using default:', currentPoint.name);
+                },
+                {
+                    enableHighAccuracy: false, // 精度より速度優先
+                    timeout: 5000,
+                    maximumAge: 600000 // 10分間キャッシュOK
+                }
+            );
+        }
 
         // Show error
         function showError(message, debug) {
@@ -655,111 +695,6 @@
                    location.protocol === 'https:' ||
                    location.hostname === 'localhost' ||
                    location.hostname === '127.0.0.1';
-        }
-
-        // Get GPS location
-        function getGPSLocation(showLoading) {
-            // If showLoading is false, we already have cached data
-            if (showLoading === false) {
-                loadingOverlay.classList.add('hidden');
-            }
-
-            var timeout = setTimeout(function() {
-                if (showLoading !== false) {
-                    showError(
-                        '位置情報の取得がタイムアウトしました。',
-                        'タイムアウト: 15秒経過'
-                    );
-                    loadingOverlay.classList.add('hidden');
-                    if (!currentPoint) useDemoMode();
-                }
-            }, 15000);
-
-            // Check secure context first
-            if (!isSecureContext()) {
-                clearTimeout(timeout);
-                if (showLoading !== false) {
-                    showError(
-                        '位置情報を取得するにはHTTPS接続が必要です。',
-                        'Protocol: ' + location.protocol + ' | Host: ' + location.hostname + ' | isSecureContext: ' + window.isSecureContext
-                    );
-                    loadingOverlay.classList.add('hidden');
-                    if (!currentPoint) useDemoMode();
-                }
-                return;
-            }
-
-            if (!navigator.geolocation) {
-                clearTimeout(timeout);
-                if (showLoading !== false) {
-                    showError(
-                        'このブラウザは位置情報に対応していません。',
-                        'navigator.geolocation: undefined'
-                    );
-                    loadingOverlay.classList.add('hidden');
-                    if (!currentPoint) useDemoMode();
-                }
-                return;
-            }
-
-            console.log('Requesting geolocation...');
-            if (showLoading !== false) {
-                document.querySelector('.loading-text').textContent = '位置情報の許可を確認中...';
-            }
-
-            navigator.geolocation.getCurrentPosition(
-                function(position) {
-                    clearTimeout(timeout);
-                    hideError();
-                    console.log('Geolocation success:', position.coords.latitude, position.coords.longitude);
-                    userLat = position.coords.latitude;
-                    userLon = position.coords.longitude;
-                    var nearest = findNearestPoint(userLat, userLon);
-                    if (nearest) {
-                        var oldPointName = currentPoint ? currentPoint.name : null;
-                        currentPoint = nearest.point;
-                        // Save to localStorage for next time
-                        saveLastPoint(currentPoint);
-                        console.log('Nearest point:', currentPoint.name, 'Distance:', nearest.distance.toFixed(1) + 'km');
-                        // Only fetch if point changed or first load
-                        if (oldPointName !== currentPoint.name) {
-                            fetchWBGTData();
-                            fetchJMAWeather();
-                        }
-                    } else {
-                        if (showLoading !== false) {
-                            showError('最寄りの観測地点が見つかりませんでした。', 'Lat: ' + userLat + ', Lon: ' + userLon);
-                        }
-                        if (!currentPoint) useDemoMode();
-                    }
-                    loadingOverlay.classList.add('hidden');
-                },
-                function(error) {
-                    clearTimeout(timeout);
-                    loadingOverlay.classList.add('hidden');
-
-                    var errorMessages = {
-                        1: '位置情報の使用が許可されていません。ブラウザの設定で許可してください。',
-                        2: '位置情報を取得できませんでした。GPS信号を確認してください。',
-                        3: '位置情報の取得がタイムアウトしました。'
-                    };
-
-                    var message = errorMessages[error.code] || '位置情報の取得に失敗しました。';
-                    var debug = 'Error code: ' + error.code + ' | Message: ' + error.message + ' | Protocol: ' + location.protocol;
-
-                    console.error('Geolocation error:', error);
-                    // Only show error if we don't have cached data
-                    if (!currentPoint) {
-                        showError(message, debug);
-                        useDemoMode();
-                    }
-                },
-                {
-                    enableHighAccuracy: true,
-                    timeout: 12000,
-                    maximumAge: 300000  // 5分間キャッシュを許可
-                }
-            );
         }
 
         // Calculate distance
