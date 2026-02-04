@@ -649,32 +649,57 @@
             return found;
         }
 
+        // Yodeckプレーヤーから位置情報を取得
+        function getYodeckLocation() {
+            return new Promise(function(resolve) {
+                // Yodeck APIが利用可能かチェック
+                if (typeof window.yodeck !== 'undefined' && window.yodeck.getPlayerInfo) {
+                    window.yodeck.getPlayerInfo(function(info) {
+                        if (info && info.location && info.location.lat && info.location.lng) {
+                            console.log('Yodeck player location:', info.location);
+                            resolve({ lat: info.location.lat, lon: info.location.lng });
+                        } else {
+                            resolve(null);
+                        }
+                    });
+                    // タイムアウト（3秒）
+                    setTimeout(function() { resolve(null); }, 3000);
+                } else {
+                    resolve(null);
+                }
+            });
+        }
+
+        // 位置情報を使って初期化
+        function initWithLocation(lat, lon, source) {
+            console.log('Using location from ' + source + ':', lat, lon);
+            var nearest = findNearestPoint(lat, lon);
+            if (nearest) {
+                currentPoint = nearest.point;
+                console.log('Nearest point:', currentPoint.name, 'Distance:', nearest.distance.toFixed(1) + 'km');
+            } else {
+                currentPoint = {
+                    code: "custom",
+                    name: "現在地",
+                    lat: lat,
+                    lon: lon
+                };
+            }
+            fetchWBGTData();
+            fetchJMAWeather();
+        }
+
         // Initialize immediately since script is at end of body
-        (function init() {
+        (async function init() {
             loadingOverlay.classList.add('hidden');
 
             var urlParams = getURLParams();
 
-            // 1. 緯度経度パラメータをチェック（最優先）
+            // 1. URLの緯度経度パラメータをチェック（最優先）
             if (!isNaN(urlParams.lat) && !isNaN(urlParams.lon)) {
-                console.log('Using lat/lon from URL:', urlParams.lat, urlParams.lon);
-                var nearest = findNearestPoint(urlParams.lat, urlParams.lon);
-                if (nearest) {
-                    currentPoint = nearest.point;
-                    console.log('Nearest point:', currentPoint.name, 'Distance:', nearest.distance.toFixed(1) + 'km');
-                } else {
-                    // 緯度経度が有効でも観測地点が見つからない場合、カスタム地点を作成
-                    currentPoint = {
-                        code: "custom",
-                        name: "現在地",
-                        lat: urlParams.lat,
-                        lon: urlParams.lon
-                    };
-                }
-                fetchWBGTData();
-                fetchJMAWeather();
+                initWithLocation(urlParams.lat, urlParams.lon, 'URL params');
             }
-            // 2. 地名パラメータをチェック
+            // 2. URL地名パラメータをチェック
             else if (urlParams.location) {
                 var point = findPointByName(urlParams.location);
                 if (point) {
@@ -687,19 +712,26 @@
                 fetchWBGTData();
                 fetchJMAWeather();
             }
-            // 3. localStorageをチェック
+            // 3. Yodeckプレーヤー位置情報をチェック
             else {
-                var lastPoint = loadLastPoint();
-                if (lastPoint) {
-                    console.log('Loaded from localStorage:', lastPoint.name);
-                    currentPoint = lastPoint;
-                } else {
-                    // 4. デフォルト（東京）を使用
-                    console.log('Using default:', DEFAULT_POINT.name);
-                    currentPoint = DEFAULT_POINT;
+                var yodeckLoc = await getYodeckLocation();
+                if (yodeckLoc) {
+                    initWithLocation(yodeckLoc.lat, yodeckLoc.lon, 'Yodeck player');
                 }
-                fetchWBGTData();
-                fetchJMAWeather();
+                // 4. localStorageをチェック
+                else {
+                    var lastPoint = loadLastPoint();
+                    if (lastPoint) {
+                        console.log('Loaded from localStorage:', lastPoint.name);
+                        currentPoint = lastPoint;
+                    } else {
+                        // 5. デフォルト（東京）を使用
+                        console.log('Using default:', DEFAULT_POINT.name);
+                        currentPoint = DEFAULT_POINT;
+                    }
+                    fetchWBGTData();
+                    fetchJMAWeather();
+                }
             }
 
             setInterval(function() {
