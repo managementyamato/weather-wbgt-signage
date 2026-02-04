@@ -460,63 +460,37 @@
         // API URLs
         var WBGT_API_BASE = 'https://wbgt-api-server-422283659205.asia-northeast1.run.app';
 
-        // 気象庁の地域コード
-        var JMA_AREA_CODES = {
-            "稚内": "011000", "旭川": "012000", "札幌": "016000", "函館": "017000",
-            "青森": "020000", "盛岡": "030000", "仙台": "040000", "秋田": "050000",
-            "山形": "060000", "福島": "070000", "水戸": "080000", "宇都宮": "090000",
-            "前橋": "100000", "さいたま": "110000", "熊谷": "110000", "千葉": "120000",
-            "東京": "130000", "横浜": "140000", "新潟": "150000", "富山": "160000",
-            "金沢": "170000", "福井": "180000", "甲府": "190000", "長野": "200000",
-            "岐阜": "210000", "静岡": "220000", "名古屋": "230000", "津": "240000",
-            "彦根": "250000", "京都": "260000", "大阪": "270000", "神戸": "280000",
-            "奈良": "290000", "和歌山": "300000", "鳥取": "310000", "松江": "320000",
-            "岡山": "330000", "広島": "340000", "下関": "350000", "徳島": "360000",
-            "高松": "370000", "松山": "380000", "高知": "390000", "福岡": "400000",
-            "佐賀": "410000", "長崎": "420000", "熊本": "430000", "大分": "440000",
-            "宮崎": "450000", "鹿児島": "460100", "那覇": "471000"
+        // Open-Meteo WMO Weather Code mapping
+        var WMO_WEATHER = {
+            0: { icon: "☀️", desc: "快晴" },
+            1: { icon: "🌤️", desc: "晴れ" },
+            2: { icon: "⛅", desc: "くもり" },
+            3: { icon: "☁️", desc: "くもり" },
+            45: { icon: "🌫️", desc: "霧" },
+            48: { icon: "🌫️", desc: "霧氷" },
+            51: { icon: "🌧️", desc: "小雨" },
+            53: { icon: "🌧️", desc: "雨" },
+            55: { icon: "🌧️", desc: "強い雨" },
+            56: { icon: "🌧️", desc: "凍雨" },
+            57: { icon: "🌧️", desc: "凍雨" },
+            61: { icon: "🌧️", desc: "小雨" },
+            63: { icon: "🌧️", desc: "雨" },
+            65: { icon: "🌧️", desc: "強い雨" },
+            66: { icon: "🌧️", desc: "凍雨" },
+            67: { icon: "🌧️", desc: "凍雨" },
+            71: { icon: "🌨️", desc: "小雪" },
+            73: { icon: "🌨️", desc: "雪" },
+            75: { icon: "🌨️", desc: "大雪" },
+            77: { icon: "🌨️", desc: "霧雪" },
+            80: { icon: "🌦️", desc: "にわか雨" },
+            81: { icon: "🌧️", desc: "にわか雨" },
+            82: { icon: "⛈️", desc: "激しいにわか雨" },
+            85: { icon: "🌨️", desc: "にわか雪" },
+            86: { icon: "🌨️", desc: "にわか雪" },
+            95: { icon: "⛈️", desc: "雷雨" },
+            96: { icon: "⛈️", desc: "雷雨（雹）" },
+            99: { icon: "⛈️", desc: "雷雨（大粒の雹）" }
         };
-
-        // 天気コードからアイコンと説明
-        var JMA_WEATHER = {
-            "100": { icon: "☀️", desc: "晴れ" },
-            "101": { icon: "🌤️", desc: "晴れ時々くもり" },
-            "102": { icon: "🌤️", desc: "晴れ一時雨" },
-            "103": { icon: "🌤️", desc: "晴れ時々雨" },
-            "104": { icon: "🌤️", desc: "晴れ一時雪" },
-            "105": { icon: "🌤️", desc: "晴れ時々雪" },
-            "110": { icon: "🌤️", desc: "晴れのちくもり" },
-            "111": { icon: "🌤️", desc: "晴れのち雨" },
-            "112": { icon: "🌤️", desc: "晴れのち雪" },
-            "113": { icon: "🌤️", desc: "晴れのち雨か雪" },
-            "114": { icon: "🌤️", desc: "晴れのち雨か雷雨" },
-            "115": { icon: "🌤️", desc: "晴れのち雪か雨" },
-            "200": { icon: "☁️", desc: "くもり" },
-            "201": { icon: "⛅", desc: "くもり時々晴れ" },
-            "202": { icon: "🌧️", desc: "くもり一時雨" },
-            "203": { icon: "🌧️", desc: "くもり時々雨" },
-            "204": { icon: "🌨️", desc: "くもり一時雪" },
-            "205": { icon: "🌨️", desc: "くもり時々雪" },
-            "210": { icon: "⛅", desc: "くもりのち晴れ" },
-            "211": { icon: "🌧️", desc: "くもりのち雨" },
-            "212": { icon: "🌨️", desc: "くもりのち雪" },
-            "213": { icon: "🌨️", desc: "くもりのち雨か雪" },
-            "214": { icon: "🌨️", desc: "くもりのち雨か雷雨" },
-            "215": { icon: "🌨️", desc: "くもりのち雪か雨" },
-            "300": { icon: "🌧️", desc: "雨" },
-            "301": { icon: "🌦️", desc: "雨時々晴れ" },
-            "302": { icon: "🌧️", desc: "雨時々くもり" },
-            "303": { icon: "🌨️", desc: "雨時々雪" },
-            "304": { icon: "🌧️", desc: "雨か雪" },
-            "308": { icon: "⛈️", desc: "大雨" },
-            "311": { icon: "🌦️", desc: "雨のち晴れ" },
-            "312": { icon: "🌧️", desc: "雨のちくもり" },
-            "313": { icon: "🌨️", desc: "雨のち雪" },
-            "314": { icon: "🌨️", desc: "雨か雪のち晴れ" },
-            "315": { icon: "🌨️", desc: "雨か雪のちくもり" },
-            "400": { icon: "🌨️", desc: "雪" },
-            "401": { icon: "🌨️", desc: "雪時々晴れ" },
-            "402": { icon: "🌨️", desc: "雪時々くもり" },
             "403": { icon: "🌨️", desc: "雪時々雨" },
             "405": { icon: "🌨️", desc: "大雪" },
             "406": { icon: "🌨️", desc: "風雪強い" },
@@ -873,62 +847,49 @@
             });
         }
 
-        // Fetch JMA Weather
+        // Fetch Weather using Open-Meteo API (CORS対応、許可不要)
         async function fetchJMAWeather() {
             if (!currentPoint) return;
 
-            var areaCode = JMA_AREA_CODES[currentPoint.name];
-            if (!areaCode) {
-                console.log('Area code not found for:', currentPoint.name);
-                setDemoWeather();
-                return;
-            }
-
             try {
-                var url = 'https://www.jma.go.jp/bosai/forecast/data/forecast/' + areaCode + '.json';
+                // Open-Meteo API - 無料、CORS対応、APIキー不要
+                var lat = currentPoint.lat;
+                var lon = currentPoint.lon;
+                var url = 'https://api.open-meteo.com/v1/forecast?' +
+                    'latitude=' + lat +
+                    '&longitude=' + lon +
+                    '&current=temperature_2m,weather_code,precipitation_probability' +
+                    '&timezone=Asia/Tokyo';
+
                 var response = await fetch(url);
-                if (!response.ok) throw new Error('JMA API error');
+                if (!response.ok) throw new Error('Open-Meteo API error');
 
                 var data = await response.json();
-                parseJMAWeather(data);
+                parseOpenMeteoWeather(data);
             } catch (error) {
-                console.error('JMA Weather error:', error);
+                console.error('Weather API error:', error);
                 setDemoWeather();
             }
         }
 
-        // Parse JMA Weather data
-        function parseJMAWeather(data) {
+        // Parse Open-Meteo Weather data
+        function parseOpenMeteoWeather(data) {
             try {
-                // 今日の天気を取得
-                var timeSeries = data[0].timeSeries;
-                
-                // 天気コード
-                var weatherCodes = timeSeries[0].areas[0].weatherCodes;
-                var weatherCode = weatherCodes[0];
-                
-                // 降水確率
-                var pops = timeSeries[1].areas[0].pops;
-                var pop = pops[0] || '--';
-                
-                // 気温（別の配列から取得）
-                var temps = data[0].timeSeries[2].areas[0].temps;
-                var tempMin = temps[0];
-                var tempMax = temps[1];
-                
-                // 現在時刻に応じて気温を選択
-                var hour = new Date().getHours();
-                var currentTemp = hour < 12 ? tempMin : tempMax;
-                
-                // UIを更新
-                var weather = JMA_WEATHER[weatherCode] || { icon: '🌡️', desc: '不明' };
+                var current = data.current;
+                var temp = Math.round(current.temperature_2m);
+                var weatherCode = current.weather_code;
+                var pop = current.precipitation_probability;
+
+                // WMOコードからアイコンと説明を取得
+                var weather = WMO_WEATHER[weatherCode] || { icon: '🌡️', desc: '不明' };
+
                 weatherIcon.textContent = weather.icon;
                 weatherDesc.textContent = weather.desc;
-                weatherTemp.textContent = currentTemp || '--';
-                weatherPop.textContent = pop + '%';
-                
+                weatherTemp.textContent = temp;
+                weatherPop.textContent = (pop !== null && pop !== undefined) ? pop + '%' : '--%';
+
             } catch (error) {
-                console.error('Parse JMA error:', error);
+                console.error('Parse weather error:', error);
                 setDemoWeather();
             }
         }
