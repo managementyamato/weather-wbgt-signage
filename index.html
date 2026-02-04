@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>天気・暑さ指数モニター</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #f5f7fa;
+            --bg-card: #ffffff;
+            --text-primary: #1a1a2e;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --danger: #dc2626;
+            --warning: #ea580c;
+            --caution: #ca8a04;
+            --attention: #16a34a;
+            --safe: #2563eb;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .container {
+            width: 100%;
+            height: 100%;
+        }
+
+        .card {
+            background: var(--bg-card);
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 3vh 4vw;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 2vh;
+            border-bottom: 2px solid var(--border-color);
+            flex-shrink: 0;
+        }
+
+        .title {
+            font-size: clamp(1.2rem, 3vw, 2rem);
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .location {
+            font-size: clamp(1rem, 2.5vw, 1.8rem);
+            color: var(--text-secondary);
+            background: var(--bg-primary);
+            padding: 1vh 2vw;
+            border-radius: 8px;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: row;
+            gap: 4vw;
+            padding: 2vh 0;
+            min-height: 0;
+        }
+
+        .weather-section {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3vw;
+            border-right: 2px solid var(--border-color);
+            padding-right: 4vw;
+        }
+
+        .weather-icon {
+            font-size: clamp(4rem, 12vw, 10rem);
+        }
+
+        .weather-info {
+            text-align: left;
+        }
+
+        .weather-temp {
+            font-size: clamp(3rem, 10vw, 8rem);
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .weather-desc {
+            font-size: clamp(1rem, 3vw, 2.5rem);
+            color: var(--text-secondary);
+            margin-top: 1vh;
+        }
+
+        .weather-details {
+            display: flex;
+            gap: 2vw;
+            margin-top: 1.5vh;
+            font-size: clamp(0.9rem, 2vw, 1.8rem);
+            color: var(--text-secondary);
+        }
+
+        .weather-detail {
+            display: flex;
+            align-items: center;
+            gap: 0.5vw;
+        }
+
+        .wbgt-section-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .value-section {
+            text-align: center;
+        }
+
+        .value-label {
+            font-size: clamp(1rem, 2vw, 1.8rem);
+            color: var(--text-secondary);
+            margin-bottom: 1vh;
+            letter-spacing: 0.5px;
+        }
+
+        .value-container {
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+            gap: 0.5vw;
+        }
+
+        .value {
+            font-size: clamp(4rem, 12vw, 10rem);
+            font-weight: 900;
+            line-height: 1;
+            transition: color 0.3s ease;
+        }
+
+        .unit {
+            font-size: clamp(1.5rem, 4vw, 3rem);
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .status {
+            text-align: center;
+            padding: 2vh 2vw;
+            border-radius: 12px;
+            margin-top: 2vh;
+            font-weight: 700;
+            transition: all 0.3s ease;
+        }
+
+        .status.danger {
+            background: rgba(220, 38, 38, 0.15);
+            color: var(--danger);
+            border: 3px solid var(--danger);
+        }
+
+        .status.warning {
+            background: rgba(234, 88, 12, 0.15);
+            color: var(--warning);
+            border: 3px solid var(--warning);
+        }
+
+        .status.caution {
+            background: rgba(202, 138, 4, 0.15);
+            color: var(--caution);
+            border: 3px solid var(--caution);
+        }
+
+        .status.attention {
+            background: rgba(22, 163, 74, 0.15);
+            color: var(--attention);
+            border: 3px solid var(--attention);
+        }
+
+        .status.safe {
+            background: rgba(37, 99, 235, 0.15);
+            color: var(--safe);
+            border: 3px solid var(--safe);
+        }
+
+        .status-main {
+            font-size: clamp(1.5rem, 4vw, 3rem);
+            margin-bottom: 0.5vh;
+        }
+
+        .status-sub {
+            font-size: clamp(1rem, 2.5vw, 2rem);
+            font-weight: 500;
+            opacity: 0.9;
+        }
+
+        .guide {
+            padding-top: 2vh;
+            border-top: 2px solid var(--border-color);
+            flex-shrink: 0;
+        }
+
+        .guide-title {
+            font-size: clamp(0.9rem, 1.5vw, 1.4rem);
+            color: var(--text-secondary);
+            margin-bottom: 1.5vh;
+            text-align: center;
+        }
+
+        .guide-items {
+            display: flex;
+            justify-content: space-between;
+            gap: 1vw;
+        }
+
+        .guide-item {
+            flex: 1;
+            text-align: center;
+            padding: 1.5vh 1vw;
+            border-radius: 8px;
+            background: var(--bg-primary);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .guide-item.active {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .guide-level {
+            font-size: clamp(0.8rem, 1.5vw, 1.3rem);
+            font-weight: 700;
+            margin-bottom: 0.5vh;
+        }
+
+        .guide-level.danger { color: var(--danger); }
+        .guide-level.warning { color: var(--warning); }
+        .guide-level.caution { color: var(--caution); }
+        .guide-level.attention { color: var(--attention); }
+        .guide-level.safe { color: var(--safe); }
+
+        .guide-range {
+            font-size: clamp(0.7rem, 1.2vw, 1.1rem);
+            color: var(--text-secondary);
+        }
+
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 2vh;
+            border-top: 2px solid var(--border-color);
+            font-size: clamp(0.9rem, 1.5vw, 1.3rem);
+            color: var(--text-secondary);
+            flex-shrink: 0;
+        }
+
+        .update-time {
+            display: flex;
+            align-items: center;
+            gap: 1vw;
+        }
+
+        .status-dot {
+            width: clamp(10px, 1vw, 16px);
+            height: clamp(10px, 1vw, 16px);
+            border-radius: 50%;
+            background: var(--attention);
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.4s ease, visibility 0.4s ease;
+        }
+
+        .loading-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--text-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .error-message {
+            background: rgba(220, 38, 38, 0.1);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 0.85rem;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .debug-info {
+            background: var(--bg-primary);
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 8px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            word-break: break-all;
+        }
+
+        /* 縦向き画面 - 上下に配置 */
+        @media (orientation: portrait) {
+            .main-content {
+                flex-direction: column;
+                gap: 2vh;
+            }
+            .weather-section {
+                border-right: none;
+                border-bottom: 2px solid var(--border-color);
+                padding-right: 0;
+                padding-bottom: 2vh;
+            }
+            .wbgt-section-wrapper {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">現在地を取得中...</div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="error-message" id="errorMessage">
+                <div id="errorText"></div>
+                <div class="debug-info" id="debugInfo"></div>
+            </div>
+
+            <div class="header">
+                <div class="title">天気・暑さ指数モニター</div>
+                <div class="location" id="location">取得中...</div>
+            </div>
+
+            <div class="main-content">
+                <div class="weather-section">
+                    <div class="weather-icon" id="weatherIcon">--</div>
+                    <div class="weather-info">
+                        <div class="weather-temp"><span id="weatherTemp">--</span>℃</div>
+                        <div class="weather-desc" id="weatherDesc">--</div>
+                        <div class="weather-details">
+                            <div class="weather-detail">
+                                <span>降水確率</span>
+                                <span id="weatherPop">--%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="wbgt-section-wrapper">
+                    <div class="value-section" id="wbgtSection">
+                        <div class="value-label">暑さ指数 (WBGT)</div>
+                        <div class="value-container">
+                            <span class="value" id="wbgtValue">--</span>
+                            <span class="unit">℃</span>
+                        </div>
+                    </div>
+
+                    <div class="status safe" id="status">
+                        <div class="status-main" id="statusMain">--</div>
+                        <div class="status-sub" id="statusSub">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="guide" id="guideSection">
+                <div class="guide-title">暑さ指数レベル</div>
+                <div class="guide-items">
+                    <div class="guide-item" data-level="danger">
+                        <div class="guide-level danger">危険</div>
+                        <div class="guide-range">31℃以上</div>
+                    </div>
+                    <div class="guide-item" data-level="warning">
+                        <div class="guide-level warning">厳重警戒</div>
+                        <div class="guide-range">28-31℃</div>
+                    </div>
+                    <div class="guide-item" data-level="caution">
+                        <div class="guide-level caution">警戒</div>
+                        <div class="guide-range">25-28℃</div>
+                    </div>
+                    <div class="guide-item" data-level="attention">
+                        <div class="guide-level attention">注意</div>
+                        <div class="guide-range">21-25℃</div>
+                    </div>
+                    <div class="guide-item" data-level="safe">
+                        <div class="guide-level safe">ほぼ安全</div>
+                        <div class="guide-range">21℃未満</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer">
+                <div class="update-time">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span>最終更新: <span id="lastUpdate">--:--</span></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API URLs
+        var WBGT_API_BASE = 'https://wbgt-api-server-422283659205.asia-northeast1.run.app';
+
+        // 気象庁の地域コード
+        var JMA_AREA_CODES = {
+            "稚内": "011000", "旭川": "012000", "札幌": "016000", "函館": "017000",
+            "青森": "020000", "盛岡": "030000", "仙台": "040000", "秋田": "050000",
+            "山形": "060000", "福島": "070000", "水戸": "080000", "宇都宮": "090000",
+            "前橋": "100000", "さいたま": "110000", "熊谷": "110000", "千葉": "120000",
+            "東京": "130000", "横浜": "140000", "新潟": "150000", "富山": "160000",
+            "金沢": "170000", "福井": "180000", "甲府": "190000", "長野": "200000",
+            "岐阜": "210000", "静岡": "220000", "名古屋": "230000", "津": "240000",
+            "彦根": "250000", "京都": "260000", "大阪": "270000", "神戸": "280000",
+            "奈良": "290000", "和歌山": "300000", "鳥取": "310000", "松江": "320000",
+            "岡山": "330000", "広島": "340000", "下関": "350000", "徳島": "360000",
+            "高松": "370000", "松山": "380000", "高知": "390000", "福岡": "400000",
+            "佐賀": "410000", "長崎": "420000", "熊本": "430000", "大分": "440000",
+            "宮崎": "450000", "鹿児島": "460100", "那覇": "471000"
+        };
+
+        // 天気コードからアイコンと説明
+        var JMA_WEATHER = {
+            "100": { icon: "☀️", desc: "晴れ" },
+            "101": { icon: "🌤️", desc: "晴れ時々くもり" },
+            "102": { icon: "🌤️", desc: "晴れ一時雨" },
+            "103": { icon: "🌤️", desc: "晴れ時々雨" },
+            "104": { icon: "🌤️", desc: "晴れ一時雪" },
+            "105": { icon: "🌤️", desc: "晴れ時々雪" },
+            "110": { icon: "🌤️", desc: "晴れのちくもり" },
+            "111": { icon: "🌤️", desc: "晴れのち雨" },
+            "112": { icon: "🌤️", desc: "晴れのち雪" },
+            "113": { icon: "🌤️", desc: "晴れのち雨か雪" },
+            "114": { icon: "🌤️", desc: "晴れのち雨か雷雨" },
+            "115": { icon: "🌤️", desc: "晴れのち雪か雨" },
+            "200": { icon: "☁️", desc: "くもり" },
+            "201": { icon: "⛅", desc: "くもり時々晴れ" },
+            "202": { icon: "🌧️", desc: "くもり一時雨" },
+            "203": { icon: "🌧️", desc: "くもり時々雨" },
+            "204": { icon: "🌨️", desc: "くもり一時雪" },
+            "205": { icon: "🌨️", desc: "くもり時々雪" },
+            "210": { icon: "⛅", desc: "くもりのち晴れ" },
+            "211": { icon: "🌧️", desc: "くもりのち雨" },
+            "212": { icon: "🌨️", desc: "くもりのち雪" },
+            "213": { icon: "🌨️", desc: "くもりのち雨か雪" },
+            "214": { icon: "🌨️", desc: "くもりのち雨か雷雨" },
+            "215": { icon: "🌨️", desc: "くもりのち雪か雨" },
+            "300": { icon: "🌧️", desc: "雨" },
+            "301": { icon: "🌦️", desc: "雨時々晴れ" },
+            "302": { icon: "🌧️", desc: "雨時々くもり" },
+            "303": { icon: "🌨️", desc: "雨時々雪" },
+            "304": { icon: "🌧️", desc: "雨か雪" },
+            "308": { icon: "⛈️", desc: "大雨" },
+            "311": { icon: "🌦️", desc: "雨のち晴れ" },
+            "312": { icon: "🌧️", desc: "雨のちくもり" },
+            "313": { icon: "🌨️", desc: "雨のち雪" },
+            "314": { icon: "🌨️", desc: "雨か雪のち晴れ" },
+            "315": { icon: "🌨️", desc: "雨か雪のちくもり" },
+            "400": { icon: "🌨️", desc: "雪" },
+            "401": { icon: "🌨️", desc: "雪時々晴れ" },
+            "402": { icon: "🌨️", desc: "雪時々くもり" },
+            "403": { icon: "🌨️", desc: "雪時々雨" },
+            "405": { icon: "🌨️", desc: "大雪" },
+            "406": { icon: "🌨️", desc: "風雪強い" },
+            "407": { icon: "🌨️", desc: "暴風雪" },
+            "411": { icon: "🌨️", desc: "雪のち晴れ" },
+            "412": { icon: "🌨️", desc: "雪のちくもり" },
+            "413": { icon: "🌧️", desc: "雪のち雨" },
+            "414": { icon: "🌨️", desc: "雪か雨のち晴れ" },
+            "415": { icon: "🌨️", desc: "雪か雨のちくもり" }
+        };
+
+        // 観測地点データ
+        var OBSERVATION_POINTS = {
+            "北海道": {
+                "宗谷": [{ code: "11016", name: "稚内", lat: 45.4167, lon: 141.6833 }],
+                "上川": [{ code: "12442", name: "旭川", lat: 43.7667, lon: 142.3667 }],
+                "石狩": [{ code: "14163", name: "札幌", lat: 43.0608, lon: 141.3544 }],
+                "渡島": [{ code: "15041", name: "函館", lat: 41.8167, lon: 140.7500 }]
+            },
+            "東北": {
+                "青森県": [{ code: "31312", name: "青森", lat: 40.8222, lon: 140.7472 }],
+                "岩手県": [{ code: "33472", name: "盛岡", lat: 39.7000, lon: 141.1667 }],
+                "宮城県": [{ code: "34392", name: "仙台", lat: 38.2667, lon: 140.8667 }],
+                "秋田県": [{ code: "32402", name: "秋田", lat: 39.7167, lon: 140.1000 }],
+                "山形県": [{ code: "35426", name: "山形", lat: 38.2556, lon: 140.3389 }],
+                "福島県": [{ code: "36126", name: "福島", lat: 37.7500, lon: 140.4667 }]
+            },
+            "関東": {
+                "茨城県": [{ code: "40201", name: "水戸", lat: 36.3667, lon: 140.4667 }],
+                "栃木県": [{ code: "41277", name: "宇都宮", lat: 36.5500, lon: 139.8667 }],
+                "群馬県": [{ code: "42251", name: "前橋", lat: 36.3833, lon: 139.0667 }],
+                "埼玉県": [{ code: "43056", name: "さいたま", lat: 35.8617, lon: 139.6453 }],
+                "千葉県": [{ code: "45147", name: "千葉", lat: 35.6000, lon: 140.1000 }],
+                "東京都": [{ code: "44132", name: "東京", lat: 35.6895, lon: 139.6917 }],
+                "神奈川県": [{ code: "46106", name: "横浜", lat: 35.4500, lon: 139.6500 }]
+            },
+            "北陸": {
+                "新潟県": [{ code: "54232", name: "新潟", lat: 37.9167, lon: 139.0500 }],
+                "富山県": [{ code: "55102", name: "富山", lat: 36.7000, lon: 137.2167 }],
+                "石川県": [{ code: "56227", name: "金沢", lat: 36.5944, lon: 136.6256 }],
+                "福井県": [{ code: "57066", name: "福井", lat: 36.0667, lon: 136.2167 }]
+            },
+            "中部": {
+                "山梨県": [{ code: "49142", name: "甲府", lat: 35.6667, lon: 138.5500 }],
+                "長野県": [{ code: "48331", name: "長野", lat: 36.6500, lon: 138.1833 }],
+                "岐阜県": [{ code: "52586", name: "岐阜", lat: 35.4167, lon: 136.7500 }],
+                "静岡県": [{ code: "50331", name: "静岡", lat: 34.9833, lon: 138.3833 }],
+                "愛知県": [{ code: "51106", name: "名古屋", lat: 35.1667, lon: 136.9667 }]
+            },
+            "近畿": {
+                "三重県": [{ code: "53133", name: "津", lat: 34.7333, lon: 136.5167 }],
+                "滋賀県": [{ code: "60131", name: "彦根", lat: 35.2667, lon: 136.2500 }],
+                "京都府": [{ code: "61286", name: "京都", lat: 35.0167, lon: 135.7333 }],
+                "大阪府": [{ code: "62078", name: "大阪", lat: 34.6833, lon: 135.5167 }],
+                "兵庫県": [{ code: "63518", name: "神戸", lat: 34.6913, lon: 135.1830 }],
+                "奈良県": [{ code: "64036", name: "奈良", lat: 34.6833, lon: 135.8333 }],
+                "和歌山県": [{ code: "65042", name: "和歌山", lat: 34.2333, lon: 135.1667 }]
+            },
+            "中国": {
+                "鳥取県": [{ code: "69122", name: "鳥取", lat: 35.5000, lon: 134.2333 }],
+                "島根県": [{ code: "68132", name: "松江", lat: 35.4667, lon: 133.0500 }],
+                "岡山県": [{ code: "66408", name: "岡山", lat: 34.6500, lon: 133.9167 }],
+                "広島県": [{ code: "67437", name: "広島", lat: 34.3833, lon: 132.4500 }],
+                "山口県": [{ code: "81428", name: "下関", lat: 33.9500, lon: 130.9333 }]
+            },
+            "四国": {
+                "徳島県": [{ code: "71106", name: "徳島", lat: 34.0667, lon: 134.5500 }],
+                "香川県": [{ code: "72086", name: "高松", lat: 34.3167, lon: 134.0500 }],
+                "愛媛県": [{ code: "73166", name: "松山", lat: 33.8333, lon: 132.7833 }],
+                "高知県": [{ code: "74181", name: "高知", lat: 33.5500, lon: 133.5333 }]
+            },
+            "九州": {
+                "福岡県": [{ code: "82182", name: "福岡", lat: 33.5833, lon: 130.3833 }],
+                "佐賀県": [{ code: "85142", name: "佐賀", lat: 33.2500, lon: 130.3000 }],
+                "長崎県": [{ code: "84496", name: "長崎", lat: 32.7333, lon: 129.8667 }],
+                "熊本県": [{ code: "86141", name: "熊本", lat: 32.8000, lon: 130.7000 }],
+                "大分県": [{ code: "83216", name: "大分", lat: 33.2333, lon: 131.6167 }],
+                "宮崎県": [{ code: "87376", name: "宮崎", lat: 31.9333, lon: 131.4167 }],
+                "鹿児島県": [{ code: "88317", name: "鹿児島", lat: 31.5667, lon: 130.5500 }]
+            },
+            "沖縄": {
+                "沖縄県": [{ code: "91197", name: "那覇", lat: 26.2167, lon: 127.6833 }]
+            }
+        };
+
+        // DOM Elements - script is at end of body so DOM is ready
+        var loadingOverlay = document.getElementById('loadingOverlay');
+        var wbgtValue = document.getElementById('wbgtValue');
+        var wbgtSection = document.getElementById('wbgtSection');
+        var guideSection = document.getElementById('guideSection');
+        var locationEl = document.getElementById('location');
+        var statusEl = document.getElementById('status');
+        var statusMain = document.getElementById('statusMain');
+        var statusSub = document.getElementById('statusSub');
+        var lastUpdate = document.getElementById('lastUpdate');
+        var statusDot = document.getElementById('statusDot');
+        var guideItems = document.querySelectorAll('.guide-item');
+        var weatherIcon = document.getElementById('weatherIcon');
+        var weatherTemp = document.getElementById('weatherTemp');
+        var weatherDesc = document.getElementById('weatherDesc');
+        var weatherPop = document.getElementById('weatherPop');
+        var errorMessage = document.getElementById('errorMessage');
+        var errorText = document.getElementById('errorText');
+        var debugInfo = document.getElementById('debugInfo');
+
+        var currentPoint = null;
+        var userLat = null;
+        var userLon = null;
+
+        // LocalStorage keys
+        var STORAGE_KEY_POINT = 'wbgt_last_point';
+
+        // Save point to localStorage
+        function saveLastPoint(point) {
+            try {
+                localStorage.setItem(STORAGE_KEY_POINT, JSON.stringify(point));
+            } catch (e) {
+                console.warn('Failed to save to localStorage:', e);
+            }
+        }
+
+        // Load point from localStorage
+        function loadLastPoint() {
+            try {
+                var saved = localStorage.getItem(STORAGE_KEY_POINT);
+                return saved ? JSON.parse(saved) : null;
+            } catch (e) {
+                console.warn('Failed to load from localStorage:', e);
+                return null;
+            }
+        }
+
+        // Initialize immediately since script is at end of body
+        (function init() {
+            // Try to load last point from localStorage for instant display
+            var lastPoint = loadLastPoint();
+            if (lastPoint) {
+                console.log('Loaded from localStorage:', lastPoint.name);
+                currentPoint = lastPoint;
+                // Hide loading immediately and show cached data
+                loadingOverlay.classList.add('hidden');
+                fetchWBGTData();
+                fetchJMAWeather();
+            }
+
+            // Get GPS location in background (will update if different)
+            getGPSLocation(!lastPoint); // showLoading = true if no cached point
+
+            setInterval(function() {
+                if (currentPoint) {
+                    fetchWBGTData();
+                    fetchJMAWeather();
+                }
+            }, 5 * 60 * 1000);
+        })();
+
+        // Show error
+        function showError(message, debug) {
+            errorText.textContent = message;
+            debugInfo.textContent = debug || '';
+            errorMessage.classList.add('show');
+        }
+
+        // Hide error
+        function hideError() {
+            errorMessage.classList.remove('show');
+        }
+
+        // Check if secure context
+        function isSecureContext() {
+            return window.isSecureContext ||
+                   location.protocol === 'https:' ||
+                   location.hostname === 'localhost' ||
+                   location.hostname === '127.0.0.1';
+        }
+
+        // Get GPS location
+        function getGPSLocation(showLoading) {
+            // If showLoading is false, we already have cached data
+            if (showLoading === false) {
+                loadingOverlay.classList.add('hidden');
+            }
+
+            var timeout = setTimeout(function() {
+                if (showLoading !== false) {
+                    showError(
+                        '位置情報の取得がタイムアウトしました。',
+                        'タイムアウト: 15秒経過'
+                    );
+                    loadingOverlay.classList.add('hidden');
+                    if (!currentPoint) useDemoMode();
+                }
+            }, 15000);
+
+            // Check secure context first
+            if (!isSecureContext()) {
+                clearTimeout(timeout);
+                if (showLoading !== false) {
+                    showError(
+                        '位置情報を取得するにはHTTPS接続が必要です。',
+                        'Protocol: ' + location.protocol + ' | Host: ' + location.hostname + ' | isSecureContext: ' + window.isSecureContext
+                    );
+                    loadingOverlay.classList.add('hidden');
+                    if (!currentPoint) useDemoMode();
+                }
+                return;
+            }
+
+            if (!navigator.geolocation) {
+                clearTimeout(timeout);
+                if (showLoading !== false) {
+                    showError(
+                        'このブラウザは位置情報に対応していません。',
+                        'navigator.geolocation: undefined'
+                    );
+                    loadingOverlay.classList.add('hidden');
+                    if (!currentPoint) useDemoMode();
+                }
+                return;
+            }
+
+            console.log('Requesting geolocation...');
+            if (showLoading !== false) {
+                document.querySelector('.loading-text').textContent = '位置情報の許可を確認中...';
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    clearTimeout(timeout);
+                    hideError();
+                    console.log('Geolocation success:', position.coords.latitude, position.coords.longitude);
+                    userLat = position.coords.latitude;
+                    userLon = position.coords.longitude;
+                    var nearest = findNearestPoint(userLat, userLon);
+                    if (nearest) {
+                        var oldPointName = currentPoint ? currentPoint.name : null;
+                        currentPoint = nearest.point;
+                        // Save to localStorage for next time
+                        saveLastPoint(currentPoint);
+                        console.log('Nearest point:', currentPoint.name, 'Distance:', nearest.distance.toFixed(1) + 'km');
+                        // Only fetch if point changed or first load
+                        if (oldPointName !== currentPoint.name) {
+                            fetchWBGTData();
+                            fetchJMAWeather();
+                        }
+                    } else {
+                        if (showLoading !== false) {
+                            showError('最寄りの観測地点が見つかりませんでした。', 'Lat: ' + userLat + ', Lon: ' + userLon);
+                        }
+                        if (!currentPoint) useDemoMode();
+                    }
+                    loadingOverlay.classList.add('hidden');
+                },
+                function(error) {
+                    clearTimeout(timeout);
+                    loadingOverlay.classList.add('hidden');
+
+                    var errorMessages = {
+                        1: '位置情報の使用が許可されていません。ブラウザの設定で許可してください。',
+                        2: '位置情報を取得できませんでした。GPS信号を確認してください。',
+                        3: '位置情報の取得がタイムアウトしました。'
+                    };
+
+                    var message = errorMessages[error.code] || '位置情報の取得に失敗しました。';
+                    var debug = 'Error code: ' + error.code + ' | Message: ' + error.message + ' | Protocol: ' + location.protocol;
+
+                    console.error('Geolocation error:', error);
+                    // Only show error if we don't have cached data
+                    if (!currentPoint) {
+                        showError(message, debug);
+                        useDemoMode();
+                    }
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 12000,
+                    maximumAge: 300000  // 5分間キャッシュを許可
+                }
+            );
+        }
+
+        // Calculate distance
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            var R = 6371;
+            var dLat = (lat2 - lat1) * Math.PI / 180;
+            var dLon = (lon2 - lon1) * Math.PI / 180;
+            var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                    Math.sin(dLon/2) * Math.sin(dLon/2);
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+
+        // Find nearest point
+        function findNearestPoint(lat, lon) {
+            var nearest = null;
+            var minDistance = Infinity;
+
+            Object.keys(OBSERVATION_POINTS).forEach(function(region) {
+                var prefs = OBSERVATION_POINTS[region];
+                Object.keys(prefs).forEach(function(pref) {
+                    var points = prefs[pref];
+                    points.forEach(function(point) {
+                        var distance = calculateDistance(lat, lon, point.lat, point.lon);
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            nearest = { region: region, pref: pref, point: point, distance: distance };
+                        }
+                    });
+                });
+            });
+
+            return nearest;
+        }
+
+        // Get status info
+        function getStatusInfo(wbgt) {
+            if (wbgt >= 31) {
+                return { level: 'danger', main: '危険', sub: '運動は原則中止', color: '#dc2626' };
+            } else if (wbgt >= 28) {
+                return { level: 'warning', main: '厳重警戒', sub: '激しい運動は中止', color: '#ea580c' };
+            } else if (wbgt >= 25) {
+                return { level: 'caution', main: '警戒', sub: '積極的に休憩', color: '#ca8a04' };
+            } else if (wbgt >= 21) {
+                return { level: 'attention', main: '注意', sub: '積極的に水分補給', color: '#16a34a' };
+            } else {
+                return { level: 'safe', main: 'ほぼ安全', sub: '適宜水分補給', color: '#2563eb' };
+            }
+        }
+
+        // Update UI
+        function updateUI(wbgt, locationName) {
+            var info = getStatusInfo(wbgt);
+
+            wbgtValue.textContent = wbgt.toFixed(1);
+            wbgtValue.style.color = info.color;
+
+            locationEl.textContent = locationName;
+
+            statusEl.className = 'status ' + info.level;
+            statusMain.textContent = info.main;
+            statusSub.textContent = info.sub;
+
+            var now = new Date();
+            lastUpdate.textContent = now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+
+            statusDot.style.background = info.color;
+
+            guideItems.forEach(function(item) {
+                if (item.dataset.level === info.level) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        }
+
+        // Fetch JMA Weather
+        async function fetchJMAWeather() {
+            if (!currentPoint) return;
+
+            var areaCode = JMA_AREA_CODES[currentPoint.name];
+            if (!areaCode) {
+                console.log('Area code not found for:', currentPoint.name);
+                setDemoWeather();
+                return;
+            }
+
+            try {
+                var url = 'https://www.jma.go.jp/bosai/forecast/data/forecast/' + areaCode + '.json';
+                var response = await fetch(url);
+                if (!response.ok) throw new Error('JMA API error');
+
+                var data = await response.json();
+                parseJMAWeather(data);
+            } catch (error) {
+                console.error('JMA Weather error:', error);
+                setDemoWeather();
+            }
+        }
+
+        // Parse JMA Weather data
+        function parseJMAWeather(data) {
+            try {
+                // 今日の天気を取得
+                var timeSeries = data[0].timeSeries;
+                
+                // 天気コード
+                var weatherCodes = timeSeries[0].areas[0].weatherCodes;
+                var weatherCode = weatherCodes[0];
+                
+                // 降水確率
+                var pops = timeSeries[1].areas[0].pops;
+                var pop = pops[0] || '--';
+                
+                // 気温（別の配列から取得）
+                var temps = data[0].timeSeries[2].areas[0].temps;
+                var tempMin = temps[0];
+                var tempMax = temps[1];
+                
+                // 現在時刻に応じて気温を選択
+                var hour = new Date().getHours();
+                var currentTemp = hour < 12 ? tempMin : tempMax;
+                
+                // UIを更新
+                var weather = JMA_WEATHER[weatherCode] || { icon: '🌡️', desc: '不明' };
+                weatherIcon.textContent = weather.icon;
+                weatherDesc.textContent = weather.desc;
+                weatherTemp.textContent = currentTemp || '--';
+                weatherPop.textContent = pop + '%';
+                
+            } catch (error) {
+                console.error('Parse JMA error:', error);
+                setDemoWeather();
+            }
+        }
+
+        // Set demo weather
+        function setDemoWeather() {
+            weatherIcon.textContent = '☀️';
+            weatherTemp.textContent = Math.round(3 + Math.random() * 5);
+            weatherDesc.textContent = '晴れ';
+            weatherPop.textContent = '10%';
+        }
+
+        // Check if WBGT season (April 20 - October 31)
+        function isWBGTSeason() {
+            var now = new Date();
+            var month = now.getMonth() + 1; // 1-12
+            var day = now.getDate();
+
+            // 4月20日〜10月31日
+            if (month >= 5 && month <= 9) return true;
+            if (month === 4 && day >= 20) return true;
+            if (month === 10) return true;
+            return false;
+        }
+
+        // Fetch WBGT data
+        async function fetchWBGTData() {
+            if (!currentPoint) {
+                hideWBGTSection('データを取得できませんでした');
+                return;
+            }
+
+            // 冬季はWBGTデータが配信されない
+            if (!isWBGTSeason()) {
+                hideWBGTSection('暑さ指数は4月下旬〜10月に配信されます');
+                if (locationEl) locationEl.textContent = currentPoint.name;
+                var now = new Date();
+                if (lastUpdate) lastUpdate.textContent = now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+                return;
+            }
+
+            try {
+                var response = await fetch(WBGT_API_BASE + '/get-wbgt-html', { method: 'GET', mode: 'cors' });
+                if (!response.ok) throw new Error('API error');
+
+                var html = await response.text();
+                var wbgt = parseWBGTFromHTML(html);
+
+                if (wbgt !== null) {
+                    showWBGTSection();
+                    updateUI(wbgt, currentPoint.name);
+                } else {
+                    throw new Error('Parse error');
+                }
+            } catch (error) {
+                console.error('WBGT Fetch error:', error);
+                hideWBGTSection('暑さ指数を取得できませんでした');
+                if (locationEl) locationEl.textContent = currentPoint ? currentPoint.name : '東京';
+                var now = new Date();
+                if (lastUpdate) lastUpdate.textContent = now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+            }
+        }
+
+        // Hide WBGT section
+        function hideWBGTSection(message) {
+            if (wbgtSection) wbgtSection.style.display = 'none';
+            if (statusEl) statusEl.style.display = 'none';
+            if (guideSection) {
+                if (message) {
+                    guideSection.innerHTML = '<div class="guide-title" style="color: var(--text-secondary);">' + message + '</div>';
+                    guideSection.style.display = 'block';
+                } else {
+                    guideSection.style.display = 'none';
+                }
+            }
+        }
+
+        // Show WBGT section
+        function showWBGTSection() {
+            if (wbgtSection) wbgtSection.style.display = 'block';
+            if (statusEl) statusEl.style.display = 'block';
+            if (guideSection) guideSection.style.display = 'block';
+        }
+
+        // Parse WBGT from HTML
+        function parseWBGTFromHTML(html) {
+            var patterns = [
+                /WBGT[：:]\s*([\d.]+)/i,
+                /暑さ指数[：:]\s*([\d.]+)/,
+                /([\d.]+)\s*℃/,
+                /value[：:"]?\s*([\d.]+)/i
+            ];
+
+            for (var i = 0; i < patterns.length; i++) {
+                var match = html.match(patterns[i]);
+                if (match && match[1]) {
+                    var value = parseFloat(match[1]);
+                    if (!isNaN(value) && value >= 0 && value <= 50) {
+                        return value;
+                    }
+                }
+            }
+            return null;
+        }
+
+        // Demo mode (weather only, no WBGT)
+        function useDemoMode() {
+            var message = isWBGTSeason() ? null : '暑さ指数は4月下旬〜10月に配信されます';
+            hideWBGTSection(message);
+            if (locationEl) locationEl.textContent = currentPoint ? currentPoint.name : '東京';
+            var now = new Date();
+            if (lastUpdate) lastUpdate.textContent = now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+            if (statusDot) statusDot.style.background = '#16a34a';
+            setDemoWeather();
+        }
+    </script>
+</body>
+</html>
