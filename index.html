@@ -623,19 +623,15 @@
             if (lastPoint) {
                 console.log('Loaded from localStorage:', lastPoint.name);
                 currentPoint = lastPoint;
+                // ローディングをすぐに非表示にしてデータ取得開始
+                loadingOverlay.classList.add('hidden');
+                fetchWBGTData();
+                fetchJMAWeather();
             } else {
-                // デフォルト地点を使用（許可なしでもすぐに表示）
-                console.log('Using default point:', DEFAULT_POINT.name);
-                currentPoint = DEFAULT_POINT;
+                // IPアドレスから位置を推定（許可不要、ダイアログなし）
+                loadingOverlay.classList.add('hidden');
+                getLocationByIP();
             }
-
-            // ローディングをすぐに非表示にしてデータ取得開始
-            loadingOverlay.classList.add('hidden');
-            fetchWBGTData();
-            fetchJMAWeather();
-
-            // GPSは完全にバックグラウンドで（許可ダイアログを出さない場合もある）
-            tryGetGPSLocationSilently();
 
             setInterval(function() {
                 if (currentPoint) {
@@ -645,36 +641,34 @@
             }, 5 * 60 * 1000);
         })();
 
-        // GPS位置情報を静かに取得（エラーは無視）
-        function tryGetGPSLocationSilently() {
-            if (!navigator.geolocation || !isSecureContext()) {
-                return; // 対応していなければ何もしない
-            }
+        // IPアドレスから位置を推定（許可不要）
+        async function getLocationByIP() {
+            try {
+                // ip-api.com - 無料、CORS対応、許可不要
+                var response = await fetch('http://ip-api.com/json/?fields=lat,lon,city,status');
+                var data = await response.json();
 
-            navigator.geolocation.getCurrentPosition(
-                function(position) {
-                    console.log('GPS success:', position.coords.latitude, position.coords.longitude);
-                    userLat = position.coords.latitude;
-                    userLon = position.coords.longitude;
-                    var nearest = findNearestPoint(userLat, userLon);
-                    if (nearest && nearest.point.name !== currentPoint.name) {
+                if (data.status === 'success' && data.lat && data.lon) {
+                    console.log('IP location:', data.city, data.lat, data.lon);
+                    var nearest = findNearestPoint(data.lat, data.lon);
+                    if (nearest) {
                         currentPoint = nearest.point;
                         saveLastPoint(currentPoint);
-                        console.log('Updated to nearest point:', currentPoint.name);
-                        fetchWBGTData();
-                        fetchJMAWeather();
+                        console.log('Using nearest point:', currentPoint.name);
+                    } else {
+                        currentPoint = DEFAULT_POINT;
                     }
-                },
-                function(error) {
-                    // エラーは静かに無視（デフォルト地点を使い続ける）
-                    console.log('GPS not available, using default:', currentPoint.name);
-                },
-                {
-                    enableHighAccuracy: false, // 精度より速度優先
-                    timeout: 5000,
-                    maximumAge: 600000 // 10分間キャッシュOK
+                } else {
+                    console.log('IP location failed, using default');
+                    currentPoint = DEFAULT_POINT;
                 }
-            );
+            } catch (error) {
+                console.log('IP location error, using default:', error);
+                currentPoint = DEFAULT_POINT;
+            }
+
+            fetchWBGTData();
+            fetchJMAWeather();
         }
 
         // Show error
@@ -687,14 +681,6 @@
         // Hide error
         function hideError() {
             errorMessage.classList.remove('show');
-        }
-
-        // Check if secure context
-        function isSecureContext() {
-            return window.isSecureContext ||
-                   location.protocol === 'https:' ||
-                   location.hostname === 'localhost' ||
-                   location.hostname === '127.0.0.1';
         }
 
         // Calculate distance
