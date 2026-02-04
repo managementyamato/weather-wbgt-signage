@@ -650,72 +650,218 @@
         }
 
         // Yodeckプレーヤーから位置情報を取得
-        function getYodeckLocation() {
+        async function getYodeckLocation() {
+            console.log('=== Yodeck Location Check Start ===');
+            console.log('window.yodeck exists:', typeof window.yodeck !== 'undefined');
+            if (typeof window.yodeck !== 'undefined') {
+                console.log('window.yodeck keys:', Object.keys(window.yodeck));
+            }
+
+            // Yodeck HTTP API経由で位置情報を取得
+            // Yodeckプレーヤー内でのみ動作（localhost:8080）
+            try {
+                // まずinit_widgetからトークンを取得を試みる
+                var token = null;
+                if (typeof window.yodeck !== 'undefined' && window.yodeck.init_widget) {
+                    token = window.yodeck.init_widget.token;
+                    console.log('Yodeck token found:', token ? 'yes' : 'no');
+                }
+
+                // Yodeck HTTP APIにアクセス
+                var headers = {};
+                if (token) {
+                    headers['Authorization'] = 'widget ' + token;
+                }
+
+                console.log('Fetching from localhost:8080/device...');
+                var response = await fetch('http://localhost:8080/device', {
+                    method: 'GET',
+                    headers: headers
+                });
+
+                console.log('HTTP API response status:', response.status);
+                if (response.ok) {
+                    var data = await response.json();
+                    console.log('Yodeck device info:', JSON.stringify(data));
+                    // locationは [lat, lon] の配列形式
+                    if (data && data.location && Array.isArray(data.location) && data.location.length >= 2) {
+                        console.log('Location found:', data.location);
+                        return { lat: data.location[0], lon: data.location[1] };
+                    } else {
+                        console.log('Location not in response or invalid format');
+                    }
+                }
+            } catch (e) {
+                console.log('Yodeck HTTP API error:', e.message);
+            }
+
+            // 旧API方式も試す（互換性のため）
+            console.log('Trying legacy API...');
             return new Promise(function(resolve) {
-                // Yodeck APIが利用可能かチェック
                 if (typeof window.yodeck !== 'undefined' && window.yodeck.getPlayerInfo) {
+                    console.log('getPlayerInfo exists, calling...');
                     window.yodeck.getPlayerInfo(function(info) {
+                        console.log('getPlayerInfo result:', JSON.stringify(info));
                         if (info && info.location && info.location.lat && info.location.lng) {
-                            console.log('Yodeck player location:', info.location);
+                            console.log('Legacy location found:', info.location);
                             resolve({ lat: info.location.lat, lon: info.location.lng });
                         } else {
+                            console.log('Legacy location not available');
                             resolve(null);
                         }
                     });
-                    // タイムアウト（3秒）
-                    setTimeout(function() { resolve(null); }, 3000);
+                    setTimeout(function() {
+                        console.log('Legacy API timeout');
+                        resolve(null);
+                    }, 2000);
                 } else {
+                    console.log('getPlayerInfo not available');
                     resolve(null);
                 }
             });
         }
 
+        // 逆ジオコーディングで地名を取得
+        async function getLocationName(lat, lon) {
+            try {
+                // Open-Meteo Geocoding APIで逆ジオコーディング
+                var url = 'https://geocoding-api.open-meteo.com/v1/search?name=' +
+                    lat.toFixed(2) + ',' + lon.toFixed(2) +
+                    '&count=1&language=ja&format=json';
+
+                // 代わりにNominatim APIを使用（無料、CORS対応）
+                var nominatimUrl = 'https://nominatim.openstreetmap.org/reverse?' +
+                    'lat=' + lat + '&lon=' + lon +
+                    '&format=json&accept-language=ja';
+
+                var response = await fetch(nominatimUrl, {
+                    headers: { 'User-Agent': 'WeatherWBGTMonitor/1.0' }
+                });
+
+                if (response.ok) {
+                    var data = await response.json();
+                    if (data && data.address) {
+                        // 市区町村名を取得
+                        var city = data.address.city ||
+                                   data.address.town ||
+                                   data.address.village ||
+                                   data.address.county ||
+                                   data.address.state;
+                        if (city) {
+                            return city;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('Reverse geocoding failed:', e);
+            }
+            return null;
+        }
+
         // 位置情報を使って初期化
-        function initWithLocation(lat, lon, source) {
+        async function initWithLocation(lat, lon, source) {
             console.log('Using location from ' + source + ':', lat, lon);
+            userLat = lat;
+            userLon = lon;
+
             var nearest = findNearestPoint(lat, lon);
-            if (nearest) {
+            if (nearest && nearest.distance < 50) {
+                // 50km以内に観測地点がある場合はそれを使用
                 currentPoint = nearest.point;
                 console.log('Nearest point:', currentPoint.name, 'Distance:', nearest.distance.toFixed(1) + 'km');
             } else {
+                // 逆ジオコーディングで地名を取得
+                var locationName = await getLocationName(lat, lon);
                 currentPoint = {
                     code: "custom",
-                    name: "現在地",
+                    name: locationName || (nearest ? nearest.point.name + '付近' : '現在地'),
                     lat: lat,
                     lon: lon
                 };
+                console.log('Using custom location:', currentPoint.name);
             }
+
+            // 位置を即座に表示
+            if (locationEl) locationEl.textContent = currentPoint.name;
+
+            // データ取得
             fetchWBGTData();
             fetchJMAWeather();
         }
 
-        // Initialize immediately since script is at end of body
+        // Yodeck APIの準備を待つ
+        function waitForYodeck(maxWait) {
+            return new Promise(function(resolve) {
+                var waited = 0;
+                var interval = 100;
+
+                function check() {
+                    // crossbar接続が確立されているかチェック
+                    if (typeof window.yodeck !== 'undefined') {
+                        console.log('Yodeck object found after ' + waited + 'ms');
+                        resolve(true);
+                        return;
+                    }
+
+                    waited += interval;
+                    if (waited >= maxWait) {
+                        console.log('Yodeck not found after ' + maxWait + 'ms');
+                        resolve(false);
+                        return;
+                    }
+
+                    setTimeout(check, interval);
+                }
+
+                check();
+            });
+        }
+
+        // Initialize
         (async function init() {
-            loadingOverlay.classList.add('hidden');
+            console.log('=== Weather WBGT Monitor Init ===');
 
             var urlParams = getURLParams();
 
             // 1. URLの緯度経度パラメータをチェック（最優先）
             if (!isNaN(urlParams.lat) && !isNaN(urlParams.lon)) {
+                console.log('Using URL lat/lon params');
+                loadingOverlay.classList.add('hidden');
                 initWithLocation(urlParams.lat, urlParams.lon, 'URL params');
             }
             // 2. URL地名パラメータをチェック
             else if (urlParams.location) {
+                console.log('Using URL location param:', urlParams.location);
+                loadingOverlay.classList.add('hidden');
                 var point = findPointByName(urlParams.location);
                 if (point) {
                     console.log('Using URL location:', point.name);
                     currentPoint = point;
                 } else {
-                    console.log('URL location not found:', urlParams.location, '- using default');
-                    currentPoint = DEFAULT_POINT;
+                    console.log('URL location not found, using as custom name:', urlParams.location);
+                    currentPoint = {
+                        code: "custom",
+                        name: urlParams.location,
+                        lat: DEFAULT_POINT.lat,
+                        lon: DEFAULT_POINT.lon
+                    };
                 }
+                if (locationEl) locationEl.textContent = currentPoint.name;
                 fetchWBGTData();
                 fetchJMAWeather();
             }
-            // 3. Yodeckプレーヤー位置情報をチェック
+            // 3. Yodeckプレーヤー位置情報をチェック（少し待つ）
             else {
+                console.log('No URL params, checking for Yodeck...');
+
+                // Yodeck環境の場合、APIの準備を待つ（最大3秒）
+                await waitForYodeck(3000);
+
+                loadingOverlay.classList.add('hidden');
+
                 var yodeckLoc = await getYodeckLocation();
                 if (yodeckLoc) {
+                    console.log('Yodeck location obtained:', yodeckLoc);
                     initWithLocation(yodeckLoc.lat, yodeckLoc.lon, 'Yodeck player');
                 }
                 // 4. localStorageをチェック
@@ -729,6 +875,7 @@
                         console.log('Using default:', DEFAULT_POINT.name);
                         currentPoint = DEFAULT_POINT;
                     }
+                    if (locationEl) locationEl.textContent = currentPoint.name;
                     fetchWBGTData();
                     fetchJMAWeather();
                 }
